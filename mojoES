@@ -1,0 +1,61 @@
+#!/usr/bin/env perl
+use Mojolicious::Lite;
+use ElasticSearch;
+
+# set ElasticSearch index name
+my $es_index = '';
+
+get '/' => sub {
+	my $self = shift;
+	$self->render('index');
+};
+
+get '/search' => sub {
+	my $self = shift;
+	my $field = $self->param('field');
+	my $q = $self->param('q');
+	my $e = Elasticsearch->new();
+
+	my $results = $e->search(
+        index => $es_index,
+        body  => {
+            query => {
+                match => { $field => $q }
+            }
+        }
+    );
+	$self->render( template => 'search', results => $results );
+};
+
+app->start;
+__DATA__
+
+@@ index.html.ep
+% layout 'default';
+% title 'Welcome';
+<form action="search">
+Field: <input type="text" name="field"><br>
+Query: <input type="text" name="q"><br>
+<input type="submit">
+</form>
+
+@@ search.html.ep
+% layout 'default';
+% title 'Search Results';
+<form action="search">
+Field: <input type="text" name="field" value="<%= param 'field' %>"><br>
+Query: <input type="text" name="q" value="<%= param 'q' %>"><br>
+<input type="submit">
+</form>
+<ul>
+% for my $res (@{$results->{'hits'}->{'hits'}}) {
+	<li><%= dumper $res %></li>
+% }
+</ul>
+
+@@ layouts/default.html.ep
+<!DOCTYPE html>
+<html>
+  <head><title><%= title %></title></head>
+  <body><%= content %></body>
+</html>
